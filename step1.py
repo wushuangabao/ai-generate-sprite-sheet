@@ -42,60 +42,65 @@ if __name__ == "__main__":
     print("----- create request -----")
     
     # 获取本地图片并转为 Base64 格式
-    # 请替换为你实际的本地首尾帧图片路径
     first_frame_path = r"E:\github\seedance\workspace\1.png"
     last_frame_path = r"E:\github\seedance\workspace\2.png"
     
     first_frame_url = get_image_url(first_frame_path)
     last_frame_url = get_image_url(last_frame_path)
 
-    create_result = client.content_generation.tasks.create(
-        model="doubao-seedance-1-5-pro-251215", # Replace with Model ID
-        content=[
-            {
-                # Combination of text prompt and parameters
-                "type": "text",
-                "text": "她驻足原地，衣带飘动。保持她在相机中的位置不动，保持视角不动。背景纯白色"
-            },
-            {
-                # 首帧图片
-                "type": "image_url",
-                "image_url": {
-                    "url": first_frame_url
+    total_requests = 10
+
+    for i in range(1, total_requests + 1):
+        print(f"\n========== 开始第 {i}/{total_requests} 次请求 ==========")
+        create_result = client.content_generation.tasks.create(
+            model="doubao-seedance-1-5-pro-251215",
+            content=[
+                {
+                    "type": "text",
+                    "text": "作为专业武术家，她准备开始战斗，从容摆好架势，同时拔出了一半武器，蓄势待发。保持她在相机中的位置不动，保持视角不动。背景纯白色"
                 },
-                "role": "first_frame"
-            },
-            {
-                # 尾帧图片
-                "type": "image_url",
-                "image_url": {
-                    "url": last_frame_url
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": first_frame_url
+                    },
+                    "role": "first_frame"
                 },
-                "role": "last_frame"
-            }
-        ],
-        seed= 20,
-        duration= 6,
-        draft= True,
-        generate_audio=False,
-        watermark=False,
-    )
-    print(create_result)
-    
-    # Polling query section
-    print("----- polling task status -----")
-    task_id = create_result.id
-    while True:
-        get_result = client.content_generation.tasks.get(task_id=task_id)
-        status = get_result.status
-        if status == "succeeded":
-            print("----- task succeeded -----")
-            print(get_result)
-            break
-        elif status == "failed":
-            print("----- task failed -----")
-            print(f"Error: {get_result.error}")
-            break
-        else:
-            print(f"Current status: {status}, Retrying after 10 seconds...")
-            time.sleep(10)
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": last_frame_url
+                    },
+                    "role": "last_frame"
+                }
+            ],
+            seed=10 + i, # 每次使用不同的 seed 确保生成不一样的视频
+            duration=4,
+            draft=True,
+            generate_audio=False,
+            watermark=False,
+        )
+        print(f"创建任务成功，任务 ID: {create_result.id}")
+        
+        # Polling query section
+        print("----- 轮询任务状态 -----")
+        task_id = create_result.id
+        while True:
+            get_result = client.content_generation.tasks.get(task_id=task_id)
+            status = get_result.status
+            if status == "succeeded":
+                print(f"----- 第 {i} 次任务成功 -----")
+                video_url = get_result.content.video_url
+                print(f"获取到视频 URL: {video_url}")
+                # 追加到文件
+                with open("..\\video_urls.txt", "a", encoding="utf-8") as f:
+                    f.write(video_url + "\n")
+                print("已将 URL 追加到 video_urls.txt")
+                break
+            elif status == "failed":
+                print(f"----- 第 {i} 次任务失败 -----")
+                print(f"Error: {get_result.error}")
+                break
+            else:
+                print(f"当前状态: {status}，等待 10 秒后重试...")
+                time.sleep(10)
